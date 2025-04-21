@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Pex Tracker</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Arial', sans-serif;
+      background-color: #eefaf1;
+    }
+
+    header {
+      background-color: #000;
+      color: white;
+      font-size: 26px;
+      text-align: center;
+      padding: 20px;
+      font-weight: bold;
+    }
+
+    main {
+      padding: 30px 20px;
+      text-align: center;
+    }
+
+    h2 {
+      color: #1a5c37;
+      font-size: 28px;
+      margin-bottom: 20px;
+    }
+
+    input {
+      width: 70%;
+      padding: 15px;
+      font-size: 18px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+    }
+
+    button {
+      padding: 15px 20px;
+      font-size: 18px;
+      background-color: #1a8a52;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      margin-left: 10px;
+      cursor: pointer;
+    }
+
+    ul {
+      list-style-type: none;
+      padding: 0;
+      margin-top: 30px;
+      font-size: 20px;
+    }
+
+    li {
+      background: #fff;
+      margin: 12px auto;
+      padding: 18px;
+      width: 90%;
+      border-radius: 10px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.05);
+      text-align: left;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .completed {
+      text-decoration: line-through;
+      color: #888;
+    }
+
+    .done-btn {
+      background-color: #555;
+      padding: 6px 14px;
+      font-size: 15px;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <header>Pex tracker</header>
+
+  <main>
+    <h2>Pex Tracker</h2>
+    <input type="text" id="taskInput" placeholder="Enter your study task..." />
+    <button onclick="addTask()">Add</button>
+    <ul id="taskList"></ul>
+  </main>
+
+  <script>
+    const taskInput = document.getElementById('taskInput');
+    const taskList = document.getElementById('taskList');
+
+    const today = new Date().toDateString();
+    if (localStorage.getItem('pex-date') !== today) {
+      localStorage.clear();
+      localStorage.setItem('pex-date', today);
+    }
+
+    let tasks = JSON.parse(localStorage.getItem('pex-tasks')) || [];
+
+    function saveTasks() {
+      localStorage.setItem('pex-tasks', JSON.stringify(tasks));
+    }
+
+    function renderTasks() {
+      taskList.innerHTML = '';
+      tasks.forEach((task, index) => {
+        const li = document.createElement('li');
+        li.className = task.done ? 'completed' : '';
+        li.innerHTML = `
+          ${index + 1}. ${task.name}
+          <button class="done-btn" onclick="markDone(${index})">Done</button>
+        `;
+        // Long press to delete
+        let pressTimer;
+        li.addEventListener("touchstart", () => {
+          pressTimer = setTimeout(() => deleteTask(index), 800);
+        });
+        li.addEventListener("touchend", () => {
+          clearTimeout(pressTimer);
+        });
+
+        taskList.appendChild(li);
+      });
+    }
+
+    function addTask() {
+      const taskName = taskInput.value.trim();
+      if (taskName !== '') {
+        tasks.push({ name: taskName, done: false });
+        saveTasks();
+        renderTasks();
+        taskInput.value = '';
+      }
+    }
+
+    function markDone(index) {
+      tasks[index].done = true;
+      saveTasks();
+      renderTasks();
+    }
+
+    function deleteTask(index) {
+      if (confirm("Delete this task?")) {
+        tasks.splice(index, 1);
+        saveTasks();
+        renderTasks();
+      }
+    }
+
+    renderTasks();
+
+    // Notifications
+    if ("Notification" in window && Notification.permission !== "denied") {
+      Notification.requestPermission();
+    }
+
+    function remindTasks() {
+      if (Notification.permission === "granted" && tasks.length > 0) {
+        const pending = tasks.filter(t => !t.done);
+        if (pending.length > 0) {
+          new Notification("Pex Tracker Reminder", {
+            body: `You have ${pending.length} task(s) pending. Tap to check!`
+          });
+        }
+      }
+    }
+
+    // Set reminder every day at 7AM (adjust as needed)
+    const now = new Date();
+    const reminderTime = new Date();
+    reminderTime.setHours(0, 0, 0, 0);
+    let delay = reminderTime - now;
+    if (delay < 0) delay += 86400000; // If time passed, wait till tomorrow
+
+    setTimeout(() => {
+      remindTasks();
+      setInterval(remindTasks, 86400000);
+    }, delay);
+  </script>
+</body>
+</html>
